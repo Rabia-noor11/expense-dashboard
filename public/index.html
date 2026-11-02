@@ -1,0 +1,53 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expense Dashboard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#f4f6fb;color:#222}
+.wrap{max-width:1100px;margin:auto;padding:16px}.top{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:1.5rem}.filters{display:flex;gap:8px}select,button{padding:9px 12px;border:1px solid #ccd;border-radius:8px;font-size:1rem;background:#fff;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+.stat,.panel{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 4px #0001}.stat small{color:#667}.stat b{display:block;font-size:1.6rem;margin-top:4px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}.panel.wide{grid-column:1/-1}
+.box{position:relative;height:260px}.dim{opacity:.5;transition:opacity .2s}
+#status,#empty{text-align:center;color:#666;padding:12px}#empty{display:none;font-size:1.1rem}
+</style></head><body><div class="wrap">
+<div class="top"><h1>💸 Expense Dashboard</h1>
+<div class="filters"><select id="months"><option value="3">Last 3 months</option><option value="6">Last 6 months</option><option value="12" selected>Last 12 months</option></select>
+<select id="cat"><option value="all">All categories</option></select></div></div>
+<div id="status"></div>
+<div id="empty">📭 No transactions match this filter.</div>
+<div id="app">
+<div class="stats"><div class="stat"><small>Total spent</small><b id="s1">-</b></div><div class="stat"><small>Transactions</small><b id="s2">-</b></div>
+<div class="stat"><small>Average</small><b id="s3">-</b></div><div class="stat"><small>Top category</small><b id="s4">-</b></div></div>
+<div class="charts"><div class="panel wide"><h3>Monthly spending (line)</h3><div class="box"><canvas id="c1"></canvas></div></div>
+<div class="panel"><h3>By category (donut)</h3><div class="box"><canvas id="c2"></canvas></div></div>
+<div class="panel"><h3>By weekday (bar)</h3><div class="box"><canvas id="c3"></canvas></div></div></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id), COLORS = ["#3a86ff","#e63946","#06d6a0","#ffb703","#8338ec","#fb5607"];
+const mk = (id, type, extra) => new Chart($(id), { type, data: { labels: [], datasets: [{ data: [] }] },
+  options: { responsive: true, maintainAspectRatio: false, ...extra } });
+const line = mk("c1","line",{plugins:{legend:{display:false}}}), donut = mk("c2","doughnut"), bar = mk("c3","bar",{plugins:{legend:{display:false}}});
+function setChart(c, rows, ds) { c.data.labels = rows.map(r => r.label); c.data.datasets = [{ data: rows.map(r => r.value), ...ds }]; c.update(); }
+
+function render(d) {
+  if ($("cat").options.length === 1) d.categories.forEach(c => $("cat").add(new Option(c, c)));
+  const empty = d.count === 0;
+  $("empty").style.display = empty ? "block" : "none"; $("app").style.display = empty ? "none" : "block";
+  if (empty) return;
+  $("s1").textContent = "$" + d.total.toLocaleString(); $("s2").textContent = d.count;
+  $("s3").textContent = "$" + d.average; $("s4").textContent = d.topCategory;
+  setChart(line, d.byMonth, { borderColor: "#3a86ff", backgroundColor: "#3a86ff33", fill: true, tension: .3 });
+  setChart(donut, d.byCategory, { backgroundColor: COLORS });
+  setChart(bar, d.byWeekday, { backgroundColor: "#06d6a0" });
+}
+async function load() {
+  const keep = $("cat").value; $("status").textContent = "Loading…"; $("app").classList.add("dim");
+  try {
+    const r = await fetch(`/api/stats?months=${$("months").value}&category=${keep}`);
+    if (!r.ok) throw new Error("Server error " + r.status);
+    render(await r.json()); $("cat").value = keep; $("status").textContent = "";
+  } catch (e) { $("status").innerHTML = "⚠️ Could not load data. <button onclick='load()'>Retry</button>"; }
+  $("app").classList.remove("dim");
+}
+$("months").onchange = $("cat").onchange = load; load();
+</script></body></html>

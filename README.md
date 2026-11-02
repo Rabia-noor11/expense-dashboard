@@ -10,5 +10,4 @@ Node.js backend (no dependencies) + Chart.js frontend.
 ## Deploy (Render, free)
 New > Web Service > connect repo. Build command: leave empty. Start command: `node server.js`.
 
-## Video (about 2 min)
-Show the cards and charts, change the date range, pick a category and watch every chart update, show the empty/loading state, show `/api/stats` in the browser.
+
